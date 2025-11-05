@@ -58,6 +58,8 @@ from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock, Semaphore, Thread
 from queue import Queue
+import requests
+from io import BytesIO
 
 # Load environment variables FIRST
 load_dotenv()
@@ -84,6 +86,23 @@ except ImportError as e:
 MAX_PARALLEL_THREADS = 18  # How many ideas to process simultaneously
 RATE_LIMIT_DELAY = .5  # Seconds to wait between API calls (per thread)
 RATE_LIMIT_GLOBAL_DELAY = 0.5  # Global delay between any API calls
+
+# ============================================
+# 📁 STRATEGY SOURCE CONFIGURATION - Moon Dev
+# ============================================
+# IMPORTANT: Choose where to read trading strategies from
+#
+# Option 1 (Default): STRATEGIES_FROM_FILES = False
+#   - Reads from ideas.txt (one strategy per line)
+#   - Classic behavior - works exactly as before
+#
+# Option 2: STRATEGIES_FROM_FILES = True
+#   - Reads all .md and .txt files from STRATEGIES_FOLDER
+#   - Each FILE = one complete strategy idea
+#   - Perfect for auto-generated strategies from web search agent!
+#
+STRATEGIES_FROM_FILES = False  # Set to True to read from folder instead of ideas.txt
+STRATEGIES_FOLDER = "/Users/md/Dropbox/dev/github/moon-dev-ai-agents-for-trading/src/data/web_search_research/final_strategies"
 
 # Thread color mapping
 THREAD_COLORS = {
@@ -115,34 +134,34 @@ rate_limiter = Semaphore(MAX_PARALLEL_THREADS)
 # - GLM: z-ai/glm-4.6
 # See src/models/openrouter_model.py for ALL available models!
 
-# 🧠 RESEARCH: Gemini 2.5 Flash (fast strategy analysis)
+# 🧠 RESEARCH: Grok 4 Fast Reasoning (xAI's blazing fast model!)
 RESEARCH_CONFIG = {
-    "type": "openrouter",
-    "name": "google/gemini-2.5-flash"
+    "type": "xai",
+    "name": "grok-4-fast-reasoning"
 }
 
-# 💻 BACKTEST CODE GEN: OpenRouter Gemini 2.5 Pro (testing Gemini through OpenRouter!)
+# 💻 BACKTEST CODE GEN: Grok 4 Fast Reasoning (xAI's blazing fast model!)
 BACKTEST_CONFIG = {
-    "type": "openrouter",
-    "name": "google/gemini-2.5-pro"
+    "type": "xai",
+    "name": "grok-4-fast-reasoning"
 }
 
-# 🐛 DEBUGGING: Qwen 3 VL 32B (vision & language for code debugging)
+# 🐛 DEBUGGING: Grok 4 Fast Reasoning (xAI's blazing fast model!)
 DEBUG_CONFIG = {
-    "type": "openrouter",
-    "name": "qwen/qwen3-vl-32b-instruct"
+    "type": "xai",
+    "name": "grok-4-fast-reasoning"
 }
 
-# 📦 PACKAGE CHECK: GLM 4.6 (Zhipu AI)
+# 📦 PACKAGE CHECK: Grok 4 Fast Reasoning (xAI's blazing fast model!)
 PACKAGE_CONFIG = {
-    "type": "openrouter",
-    "name": "z-ai/glm-4.6"
+    "type": "xai",
+    "name": "grok-4-fast-reasoning"
 }
 
-# 🚀 OPTIMIZATION: GLM 4.6 (Zhipu AI for strategy optimization)
+# 🚀 OPTIMIZATION: Grok 4 Fast Reasoning (xAI's blazing fast model!)
 OPTIMIZE_CONFIG = {
-    "type": "openrouter",
-    "name": "z-ai/glm-4.6"
+    "type": "xai",
+    "name": "grok-4-fast-reasoning"
 }
 
 # 🎯 PROFIT TARGET CONFIGURATION
@@ -257,6 +276,127 @@ def rate_limited_api_call(func, thread_id, *args, **kwargs):
     time.sleep(RATE_LIMIT_DELAY)
 
     return result
+
+# ============================================
+# 📄 PDF & YOUTUBE EXTRACTION - Moon Dev
+# ============================================
+
+def get_youtube_transcript(video_id, thread_id):
+    """Get transcript from YouTube video - Moon Dev"""
+    try:
+        try:
+            from youtube_transcript_api import YouTubeTranscriptApi
+        except ImportError:
+            thread_print("⚠️ youtube-transcript-api not installed", thread_id, "yellow")
+            return None
+
+        thread_print(f"🎥 Fetching transcript for video ID: {video_id}", thread_id, "cyan")
+
+        # 🌙 Moon Dev: Using youtube-transcript-api v1.2.3+ API
+        api = YouTubeTranscriptApi()
+        transcript_data = api.fetch(video_id, languages=['en'])
+
+        # Get the full transcript text
+        transcript_text = ' '.join([snippet.text for snippet in transcript_data])
+
+        thread_print(f"✅ Transcript extracted! Length: {len(transcript_text)} characters", thread_id, "green")
+
+        # 🌙 Moon Dev: Print first 300 characters for verification
+        preview = transcript_text[:300].replace('\n', ' ')
+        thread_print(f"📝 Preview: {preview}...", thread_id, "cyan")
+
+        return transcript_text
+    except Exception as e:
+        thread_print(f"❌ Error fetching YouTube transcript: {e}", thread_id, "red")
+        return None
+
+def get_pdf_text(url, thread_id):
+    """Extract text from PDF URL - Moon Dev"""
+    try:
+        try:
+            import PyPDF2
+        except ImportError:
+            thread_print("⚠️ PyPDF2 not installed", thread_id, "yellow")
+            return None
+
+        thread_print(f"📚 Fetching PDF from: {url[:60]}...", thread_id, "cyan")
+
+        # Add headers to simulate browser request
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+        }
+
+        response = requests.get(url, stream=True, headers=headers)
+        response.raise_for_status()
+
+        thread_print("📖 Extracting text from PDF...", thread_id, "cyan")
+        reader = PyPDF2.PdfReader(BytesIO(response.content))
+        text = ''
+        for page in reader.pages:
+            page_text = page.extract_text()
+            text += page_text + '\n'
+
+        thread_print(f"✅ PDF extracted! Pages: {len(reader.pages)}, Length: {len(text)} characters", thread_id, "green")
+
+        # 🌙 Moon Dev: Print first 300 characters for verification
+        preview = text[:300].replace('\n', ' ')
+        thread_print(f"📝 Preview: {preview}...", thread_id, "cyan")
+
+        return text
+    except Exception as e:
+        thread_print(f"❌ Error reading PDF: {e}", thread_id, "red")
+        return None
+
+def extract_youtube_id(url):
+    """Extract video ID from YouTube URL - Moon Dev"""
+    try:
+        if "v=" in url:
+            video_id = url.split("v=")[1].split("&")[0]
+        else:
+            video_id = url.split("/")[-1].split("?")[0]
+        return video_id
+    except:
+        return None
+
+def extract_content_from_url(idea: str, thread_id: int) -> str:
+    """
+    🌙 Moon Dev: Extract content from PDF or YouTube URLs
+    Returns extracted content or original idea if not a URL
+    """
+    idea = idea.strip()
+
+    # Check if it's a YouTube URL
+    if "youtube.com" in idea or "youtu.be" in idea:
+        video_id = extract_youtube_id(idea)
+        if video_id:
+            transcript = get_youtube_transcript(video_id, thread_id)
+            if transcript:
+                return f"Strategy from YouTube video:\n\n{transcript}"
+            else:
+                # Red background warning
+                with console_lock:
+                    cprint("="*80, "white", "on_red", attrs=['bold'])
+                    cprint(f"⚠️  YOUTUBE EXTRACTION FAILED - Sleeping 30s", "white", "on_red", attrs=['bold'])
+                    cprint("="*80, "white", "on_red", attrs=['bold'])
+                time.sleep(30)
+                return idea  # Return original idea to continue processing
+
+    # Check if it's a PDF URL
+    elif idea.endswith(".pdf") or "pdf" in idea.lower():
+        pdf_text = get_pdf_text(idea, thread_id)
+        if pdf_text:
+            return f"Strategy from PDF document:\n\n{pdf_text}"
+        else:
+            # Red background warning
+            with console_lock:
+                cprint("="*80, "white", "on_red", attrs=['bold'])
+                cprint(f"⚠️  PDF EXTRACTION FAILED - Sleeping 30s", "white", "on_red", attrs=['bold'])
+                cprint("="*80, "white", "on_red", attrs=['bold'])
+            time.sleep(30)
+            return idea  # Return original idea to continue processing
+
+    # Not a URL, return as-is
+    return idea
 
 # ============================================
 # 📝 PROMPTS (Same as v3)
@@ -664,7 +804,12 @@ def parse_all_stats_from_output(stdout: str, thread_id: int) -> dict:
         if match:
             stats['trades'] = int(match.group(1))
 
-        thread_print(f"📊 Extracted {sum(1 for v in stats.values() if v is not None)}/7 stats", thread_id)
+        # 🌙 Moon Dev: Exposure Time [%]
+        match = re.search(r'Exposure Time \[%\]\s+([-\d.]+)', stdout)
+        if match:
+            stats['exposure'] = float(match.group(1))
+
+        thread_print(f"📊 Extracted {sum(1 for v in stats.values() if v is not None)}/8 stats", thread_id)
         return stats
 
     except Exception as e:
@@ -695,6 +840,7 @@ def log_stats_to_csv(strategy_name: str, thread_id: int, stats: dict, file_path:
                         'Max Drawdown %',
                         'Sharpe Ratio',
                         'Sortino Ratio',
+                        'Exposure %',  # 🌙 Moon Dev: Added Exposure Time
                         'EV %',  # 🌙 Moon Dev: Changed from Expectancy %
                         'Trades',  # 🌙 Moon Dev: Added # Trades
                         'File Path',
@@ -714,6 +860,7 @@ def log_stats_to_csv(strategy_name: str, thread_id: int, stats: dict, file_path:
                     stats.get('max_drawdown_pct', 'N/A'),
                     stats.get('sharpe', 'N/A'),
                     stats.get('sortino', 'N/A'),
+                    stats.get('exposure', 'N/A'),  # 🌙 Moon Dev: Added Exposure %
                     stats.get('expectancy', 'N/A'),
                     stats.get('trades', 'N/A'),  # 🌙 Moon Dev: Added # Trades
                     str(file_path),
@@ -769,6 +916,7 @@ def parse_and_log_multi_data_results(strategy_name: str, thread_id: int, backtes
                 'max_drawdown_pct': row.get('Max_DD_%', None),
                 'sharpe': row.get('Sharpe', None),
                 'sortino': row.get('Sortino', None),
+                'exposure': row.get('Exposure_Time_%', None),  # 🌙 Moon Dev: Added Exposure % (matches multi_data_tester.py column name)
                 'expectancy': row.get('Expectancy_%', None),
                 'trades': row.get('Trades', None)  # 🌙 Moon Dev: Added # Trades
             }
@@ -1189,8 +1337,11 @@ def process_trading_idea_parallel(idea: str, thread_id: int) -> dict:
 
         thread_print(f"🚀 Starting processing", thread_id, attrs=['bold'])
 
+        # 🌙 Moon Dev: Extract content from PDF/YouTube if URL provided
+        processed_idea = extract_content_from_url(idea, thread_id)
+
         # Phase 1: Research
-        strategy, strategy_name = research_strategy(idea, thread_id)
+        strategy, strategy_name = research_strategy(processed_idea, thread_id)
 
         if not strategy:
             thread_print("❌ Research failed", thread_id, "red")
@@ -1442,18 +1593,47 @@ def process_trading_idea_parallel(idea: str, thread_id: int) -> dict:
         thread_print(f"❌ FATAL ERROR: {str(e)}", thread_id, "red", attrs=['bold'])
         return {"success": False, "error": str(e), "thread_id": thread_id}
 
+def get_strategies_from_files():
+    """🌙 Moon Dev: Read all .md and .txt files from STRATEGIES_FOLDER"""
+    strategies = []
+    folder_path = Path(STRATEGIES_FOLDER)
+
+    if not folder_path.exists():
+        return strategies
+
+    # Get all .md and .txt files
+    for file_path in folder_path.glob('*'):
+        if file_path.suffix.lower() in ['.md', '.txt']:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read().strip()
+                    if content:  # Only add non-empty files
+                        strategies.append(content)
+            except Exception as e:
+                with console_lock:
+                    cprint(f"⚠️ Error reading {file_path.name}: {str(e)}", "yellow")
+
+    return strategies
+
+
 def idea_monitor_thread(idea_queue: Queue, queued_ideas: set, queued_lock: Lock, stop_flag: dict):
-    """🌙 Moon Dev: Producer thread - continuously monitors ideas.txt and queues new ideas"""
+    """🌙 Moon Dev: Producer thread - monitors ideas.txt OR strategy files and queues new ideas"""
     global IDEAS_FILE
 
     while not stop_flag.get('stop', False):
         try:
-            if not IDEAS_FILE.exists():
-                time.sleep(1)
-                continue
+            # 🌙 Moon Dev: Check which mode we're in
+            if STRATEGIES_FROM_FILES:
+                # MODE: Read from files
+                ideas = get_strategies_from_files()
+            else:
+                # MODE: Read from ideas.txt (classic behavior)
+                if not IDEAS_FILE.exists():
+                    time.sleep(1)
+                    continue
 
-            with open(IDEAS_FILE, 'r') as f:
-                ideas = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+                with open(IDEAS_FILE, 'r') as f:
+                    ideas = [line.strip() for line in f if line.strip() and not line.startswith('#')]
 
             # Find new unprocessed ideas
             for idea in ideas:
@@ -1551,6 +1731,24 @@ def main(ideas_file_path=None, run_name=None):
     else:
         cprint("", "white")
 
+    # 🌙 Moon Dev: Show VERY CLEAR configuration mode
+    cprint(f"\n{'='*60}", "white", attrs=['bold'])
+    if STRATEGIES_FROM_FILES:
+        cprint(f"📁 STRATEGY SOURCE: FILES FROM FOLDER", "green", attrs=['bold'])
+        cprint(f"📂 Folder: {STRATEGIES_FOLDER}", "yellow")
+        # Count files
+        folder_path = Path(STRATEGIES_FOLDER)
+        if folder_path.exists():
+            file_count = len([f for f in folder_path.glob('*') if f.suffix.lower() in ['.md', '.txt']])
+            cprint(f"📊 Found {file_count} strategy files (.md/.txt)", "cyan", attrs=['bold'])
+        else:
+            cprint(f"⚠️  Folder does not exist yet!", "red")
+    else:
+        cprint(f"📝 STRATEGY SOURCE: ideas.txt (line by line)", "cyan", attrs=['bold'])
+        cprint(f"📄 File: {IDEAS_FILE}", "yellow")
+        cprint(f"💡 Classic mode - one strategy per line", "white")
+    cprint(f"{'='*60}\n", "white", attrs=['bold'])
+
     # Create template if needed
     if not IDEAS_FILE.exists():
         cprint(f"❌ ideas.txt not found! Creating template...", "red")
@@ -1565,7 +1763,10 @@ def main(ideas_file_path=None, run_name=None):
 
     # 🌙 Moon Dev: CONTINUOUS QUEUE MODE
     cprint(f"\n🔄 CONTINUOUS QUEUE MODE ACTIVATED", "cyan", attrs=['bold'])
-    cprint(f"⏰ Monitoring ideas.txt every 1 second", "yellow")
+    if STRATEGIES_FROM_FILES:
+        cprint(f"⏰ Monitoring strategy files in folder every 1 second", "yellow")
+    else:
+        cprint(f"⏰ Monitoring ideas.txt every 1 second", "yellow")
     cprint(f"🧵 {MAX_PARALLEL_THREADS} worker threads ready\n", "yellow")
 
     # Shared queue, queued ideas set, and stats
